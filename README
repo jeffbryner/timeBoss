@@ -1,0 +1,45 @@
+timeBoss
+
+A UI for forensic filtering of filesystem MAC times. 
+
+What? 
+    If you've used the sleuthkit to create filesystem timelines
+    you know that the result is a treasure-trove of information. 
+    
+    However, it's usually plain text and difficult to parse beyond
+    simple greps without some tools. 
+    
+    timeBoss is a UI built with python and kivy that makes use of 
+    pandas dataframes with timestamp indexing to filter the timeline
+    into usable bits. 
+    
+Install? 
+    prerequesites: 
+    python 2.7
+    pandas: pip install pandas
+    kivy: pip install kivy
+    
+Run? 
+    python main.py from whatever directory you've downloaded the project to. 
+    
+    You'll be presented with a file open dialog. Pick a timeline file generated 
+    to .csv format ala: 
+    
+    <assuming a dd disk image of an ntfs drive named sda1.dd> 
+    fls -f ntfs -m / -r sda1.dd > sda1.dd.macs
+    ils -f ntfs -m  sda1.dd >> sda1.dd.macs
+    mactime -b sda1.macs -d > sda1.mactime.csv
+    
+    
+    Once opened (typical win7 install is 20MB worth of macs, 30secs to open)
+    you'll see the main interface with years at the bottom, search at the top. 
+    
+    Click a year and you'll see the time entries for that year. 
+    You can search a display by typing something (.exe for example) and pressing
+    return. 
+    
+    Scroll the list or the years by left clicking and dragging or via mouse
+    wheel. 
+    
+Next? 
+    This is an early release..feedback welcome!    

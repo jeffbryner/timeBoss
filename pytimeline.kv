@@ -1,0 +1,122 @@
+#:import os os
+<pytimeline>:
+	#pyid:kvid
+	timeitems:timeitems
+	columnHeadings:columnHeadings
+	timegraph:timegraph
+
+
+	id:pytimeline
+	AnchorLayout:
+		anchor_x: 'left'
+		anchor_y: 'bottom'
+		Label:
+			text: str("[b][color=ff3333]" + root.status + "[/color][/b]")
+			markup: True
+			size_hint: (.20, .05)
+			font_size: root.size[0]*.01
+			text_size: self.size
+	BoxLayout:
+		orientation: 'vertical'
+		spacing:10
+		BoxLayout:
+			padding:10
+			size_hint: 1,.07
+			Label:
+				text: "Search"
+				size_hint_x: .1
+			TextInput:
+				id:searchtext
+				multiline: False
+				on_text_validate: root.filterText(self.text)
+		BoxLayout:
+			id:columnHeadings
+			orientation: 'vertical'
+			pos_hint: {'center_x':.5}
+			size_hint:.95,.05
+
+		BoxLayout:
+			id: timeitems
+			orientation: 'vertical'
+			#size: (root.size[0]-10,root.size[1]-10)
+			size_hint: .95,1
+			pos_hint: {'center_x':.5}
+			padding:0
+			spacing:0
+			#canvas:
+			#	Color:
+			#		rgba: (0, .10, 0, .50)
+			#	Rectangle:
+			#		size: self.size										
+			#		pos: self.pos			
+			
+		BoxLayout:
+			id: timegraph
+			size_hint_y: None
+			height: 100
+			size_hint_x:.93
+			#pos_hint: {'center_x':.6}
+			pos_hint: {'right':1}
+			canvas:
+				Color:
+					rgba: (.1, .10, .20, .2)
+				Rectangle:
+					size: self.size										
+					pos: self.pos				
+		
+
+<YearWidget>:
+	RelativeLayout:
+		Label:
+			color: (1,1,1,.25)
+			size_hint_y: None
+			height: max(10,100*float("{0:.5f}".format(float(root.items)/float(root.maxitems))))
+			canvas:
+				Color:
+					rgba: self.color if not root.selected else (1, 1, 1, .96)
+				Rectangle:
+					size: self.size										
+					pos: self.pos	
+		Label:
+			text: root.display
+			text_size: None,self.height
+			size_hint_y: None
+			valign: 'bottom'
+			color: (1,0,0,1)
+			on_touch_down: root.filterYear()
+			
+[TimeEntry@BoxLayout]:
+    size_hint_y: ctx.size_hint_y
+    height: ctx.height
+    Label:
+        text: ctx.text
+        font_size: '12sp'
+        font_name: 'DroidSansMono.ttf'
+        text_size: self.size
+
+<Wait>:
+	BoxLayout:
+		size: root.size
+		pos: root.pos
+		Image:
+			source: 'loading.gif'
+        
+<LoadDialog>:
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
+            path: os.getcwd()
+
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+
+            Button:
+                text: "Load"
+                on_release: root.load(filechooser.path, filechooser.selection)
