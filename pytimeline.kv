@@ -22,13 +22,17 @@
 		BoxLayout:
 			padding:10
 			size_hint: 1,.07
+			Button: 
+				text: 'Open'
+				size_hint_x: .05
+				on_release: root.uiShowLoad()
 			Label:
 				text: "Search"
 				size_hint_x: .1
 			TextInput:
 				id:searchtext
 				multiline: False
-				on_text_validate: root.filterText(self.text)
+				on_text_validate: root.tiFilterText(self.text)
 		BoxLayout:
 			id:columnHeadings
 			orientation: 'vertical'
@@ -83,7 +87,7 @@
 			size_hint_y: None
 			valign: 'bottom'
 			color: (1,0,0,1)
-			on_touch_down: root.filterYear()
+			on_touch_down: root.tiFilterYear()
 			
 [TimeEntry@BoxLayout]:
     size_hint_y: ctx.size_hint_y

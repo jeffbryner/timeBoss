@@ -1,4 +1,16 @@
 #!/usr/bin/python2
+#a UI for timeline viewing, filtering and searching
+#2013 Jeff Bryner
+#
+# A note on the functions; semi-following an old-school pattern of:
+# ui=user interface function (change look/feel only)
+# ti=transaction interface function (stitch the ui/ei/di layers together into a transaction)
+# ei=external interface (talk to something outside of us, filesystem, socket, etc)
+# di=data interface (sort, filter, transform data)
+#
+# Helps to avoid the old Visual Basic style code mess of same code pasted behind many buttons.
+#
+
 import os
 import sys
 import string
@@ -43,13 +55,13 @@ class YearWidget(RelativeLayout):
     selected=BooleanProperty(False)
 
     
-    def filterYear(self):
-        #unselect everybody else but us, precious
+    def tiFilterYear(self):
+        #unselect everybody else but us
         for c in self.parent.children:
             c.selected=False
         self.selected=True
-        #tell the master to filter its resultses.
-        self.parent.parent.parent.parent.parent.parent.filterYear(self.year)
+        #tell the master to filter its results
+        self.parent.parent.parent.parent.parent.parent.tiFilterYear(self.year)
 
 class Wait(BoxLayout):
     pass
@@ -80,25 +92,25 @@ class pytimeline(RelativeLayout):
     timeitems=ObjectProperty()
     SearchText=ObjectProperty(TextInput)
     
-    def filterText(self,searchText):        
+    def tiFilterText(self,searchText):        
         dfFilter=self.dftime['File Name'].map(lambda x:string.lower(searchText) in string.lower(x) )
         if len(self.dftime[dfFilter])==0:
             self.status='No matches'        
         else:
             sel=self.dftime[dfFilter]
-            self.showDataFrame(sel)
+            self.tiShowDataFrame(sel)
         
-    def filterYear(self,year):        
+    def tiFilterYear(self,year):        
 
         #get the subset of the data frame that matches the year: 
         #first X matches?
         #sel=self.df[self.df.index.year==year][0:100]
         sel=self.df[self.df.index.year==year]
         self.dftime=sel
-        self.showDataFrame(sel)
+        self.tiShowDataFrame(sel)
 
 
-    def showDataFrame(self,dataframe):
+    def tiShowDataFrame(self,dataframe):
         #clear the old
         self.timeitems.clear_widgets()
         self.columnHeadings.clear_widgets()
@@ -134,43 +146,46 @@ class pytimeline(RelativeLayout):
         
         self.status='%d items'%len(dataframe.values)        
         
-    def dismiss_popup(self):
-        self._popup.dismiss()
+    def uiDismissLoad(self):
+        self.load.dismiss()
 
-    def show_load(self):
-        content = LoadDialog(load=self.hide_load, cancel=self.dismiss_popup)        
-        self._popup = Popup(title="Load CSV timeline file", content=content, size_hint=(0.5, 0.5))
-        self._popup.open()
+    def uiShowLoad(self):
+        content = LoadDialog(load=self.tiStartLoadFile, cancel=self.uiDismissLoad)        
+        self.load = Popup(title="Load CSV timeline file", content=content, size_hint=(0.5, 0.5))
+        self.load.open()
 
-    def show_wait(self,dt):
-        self.status="please wait..."
+    def uiShowWait(self,dt):
+        self.status="..."
         content = Wait()
-        self._wait=Popup(title="     .:|Loading|:.",content=content,size_hint=(.1,.1))
-        self._wait.open()
+        self.timeitems.clear_widgets()
+        self.columnHeadings.clear_widgets()
+        self.timegraph.clear_widgets()
+        self.timeitems.add_widget(content)
 
-    def hide_wait(self,dt):
-        self._wait.dismiss()
-        self.status='ready'                
-
-    def hide_load(self,path,filename):
-        Clock.schedule_once(partial(self.show_wait))
-        Clock.schedule_once(partial(self.dfload),1)
-        self._popup.dismiss()
+    def tiStartLoadFile(self,path,filename):
+        #use the kivy scheduler to show a wait ui, start the read thread and schedule the load transaction
+        self.load.dismiss()        
+        Clock.schedule_once(partial(self.uiShowWait))
+        Clock.schedule_once(partial(self.tiFinishLoadFile),1)        
         self.readThread=macFileRead()
         self.readThread.filename=os.path.join(path,filename[0])
         self.readThread.parent=self
         self.readThread.start()        
         
     
-    def dfload(self,dt):
+    def tiFinishLoadFile(self,dt):
 
         #self.df=read_csv(os.path.join(path, filename[0]),parse_dates=True,keep_date_col=True,index_col=0)
         if len(self.df) == 0:
             #thread isn't finished loading yet.
-            Clock.schedule_once(partial(self.dfload),1)
+            Clock.schedule_once(partial(self.tiFinishLoadFile),1)
             return
         
-        Clock.schedule_once(partial(self.hide_wait))
+        #Clock.schedule_once(partial(self.hide_wait))
+
+        #clear the old
+        self.timeitems.clear_widgets()
+        self.columnHeadings.clear_widgets()
         
         #create the year scrollview UI and timegrid
         sview=ScrollView()
@@ -208,7 +223,7 @@ class pytimelineApp(App):
         
     def build(self):
         kvLayout=pytimeline()
-        kvLayout.show_load()
+        kvLayout.uiShowLoad()
         return kvLayout
 
 
