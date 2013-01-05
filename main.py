@@ -78,16 +78,16 @@ class macFileRead(Thread):
         self.filename=None
         
     def run(self):        
+        self.parent.dfready=False
         self.df=pandas.read_csv(self.filename,parse_dates=True,keep_date_col=True,index_col=0)
         self.parent.df = self.df
+        self.parent.dfready=True
 
-
-
-    
 class pytimeline(RelativeLayout):
     status=StringProperty('')
     loadfile = ObjectProperty(None)
     df=pandas.DataFrame()
+    dfready=BooleanProperty(False)
     dftime=pandas.DataFrame()
     timeitems=ObjectProperty()
     SearchText=ObjectProperty(TextInput)
@@ -108,7 +108,6 @@ class pytimeline(RelativeLayout):
         sel=self.df[self.df.index.year==year]
         self.dftime=sel
         self.tiShowDataFrame(sel)
-
 
     def tiShowDataFrame(self,dataframe):
         #clear the old
@@ -154,38 +153,37 @@ class pytimeline(RelativeLayout):
         self.load = Popup(title="Load CSV timeline file", content=content, size_hint=(0.5, 0.5))
         self.load.open()
 
-    def uiShowWait(self,dt):
-        self.status="..."
-        content = Wait()
+    def uiClearScreen(self):
         self.timeitems.clear_widgets()
         self.columnHeadings.clear_widgets()
         self.timegraph.clear_widgets()
+        
+    def uiShowWait(self,dt):
+        self.status="..."
+        content = Wait()
+        self.uiClearScreen()
         self.timeitems.add_widget(content)
 
     def tiStartLoadFile(self,path,filename):
         #use the kivy scheduler to show a wait ui, start the read thread and schedule the load transaction
-        self.load.dismiss()        
-        Clock.schedule_once(partial(self.uiShowWait))
-        Clock.schedule_once(partial(self.tiFinishLoadFile),1)        
+        Clock.schedule_once(partial(self.uiShowWait))        
+        self.load.dismiss()                
         self.readThread=macFileRead()
         self.readThread.filename=os.path.join(path,filename[0])
         self.readThread.parent=self
         self.readThread.start()        
+        Clock.schedule_once(partial(self.tiFinishLoadFile),1)        
         
-    
     def tiFinishLoadFile(self,dt):
 
         #self.df=read_csv(os.path.join(path, filename[0]),parse_dates=True,keep_date_col=True,index_col=0)
-        if len(self.df) == 0:
+        if not self.dfready:
             #thread isn't finished loading yet.
             Clock.schedule_once(partial(self.tiFinishLoadFile),1)
             return
-        
-        #Clock.schedule_once(partial(self.hide_wait))
 
         #clear the old
-        self.timeitems.clear_widgets()
-        self.columnHeadings.clear_widgets()
+        self.uiClearScreen()
         
         #create the year scrollview UI and timegrid
         sview=ScrollView()
@@ -209,29 +207,35 @@ class pytimeline(RelativeLayout):
             ayearWidget=YearWidget(items=yearItems,display=str(x),year=int(x),maxitems=maxitems)
             timegrid.add_widget(ayearWidget)
                     
-        sview.add_widget(timegrid)                       
+        sview.add_widget(timegrid)
+        self.status="ready"
 
         
 
 class pytimelineApp(App):           
     def build_config(self, config):
-        Config.set('graphics','width',1650)
+        Config.set('kivy','log_enable','0')                
+        if options.debug:
+            Config.set('kivy','log_level','debug')
+        else:
+            Config.set('kivy','log_level','critical')
+        
+        Config.set('graphics','width',1500)
         Config.set('graphics','height',1024)
-        Config.set('kivy','log_level','info')
-        Config.set('kivy','log_enable','0')        
+
         
         
     def build(self):
         kvLayout=pytimeline()
+        #a lil silly, but we load the wait and clear it so kivy loads the 'loading.gif', else it lags later and seems unresponsive.
+        kvLayout.uiShowWait(dt=None)
+        kvLayout.uiClearScreen()
         kvLayout.uiShowLoad()
         return kvLayout
 
 
 if __name__ == '__main__':
     parser = OptionParser()
-    parser.add_option("-i", dest='input', default="stdin",help="input: stdin default, csv filename of timeline data")
     parser.add_option("-d", "--debug",action="store_true", dest="debug", default=False, help="turn on debugging output")    
-
     (options,args) = parser.parse_args()
-    
     pytimelineApp().run()
