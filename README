@@ -20,7 +20,7 @@ Install?
     kivy: pip install kivy
     
 Run? 
-    Video Demo: http://www.youtube.com/watch?v=lP0D92EIMKY
+    Video Demo: http://www.youtube.com/watch?v=4Km_FR-Esk8
 
     python main.py from whatever directory you've downloaded the project to. 
     
@@ -32,14 +32,21 @@ Run?
     ils -f ntfs -m  sda1.dd >> sda1.dd.macs
     mactime -b sda1.macs -d > sda1.mactime.csv
     
-    
+Usage:     
     Once opened (typical win7 install is 20MB worth of macs, 30secs to open)
     you'll see the main interface with years at the bottom, search at the top. 
     
     Click a year and you'll see the time entries for that year. 
+
+Filtering: 
     You can search a display by typing something (.exe for example) and pressing
-    return. 
-    
+    return.
+
+    Filtering is cumulative. Search 'deleted' and you'll see all deleted files. Search again for 'exe' and you'll
+    see only deleted 'exe' files. 
+
+    Enter any recognizable date (1/1, 1/1/2000, 4am, Aug 1st, etc) range to filter results within that range.
+
     Scroll the list or the years by left clicking and dragging or via mouse
     wheel. 
     
