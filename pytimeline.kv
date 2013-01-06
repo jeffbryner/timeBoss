@@ -27,12 +27,33 @@
 				size_hint_x: .05
 				on_release: root.uiShowLoad()
 			Label:
-				text: "Search"
-				size_hint_x: .1
+				text: "Date"
+				size_hint_x: .05
+			TextInput:
+				id:begindate
+				multiline:False
+				size_hint_x: .2
+				on_text_validate: root.tiFilterDate(self.text,enddate.text)
+			Label:
+				text: "to"
+				size_hint_x: .05
+			TextInput:
+				id:enddate
+				multiline:False
+				size_hint_x: .2
+				on_text_validate: root.tiFilterDate(begindate.text,self.text)				
+			Label:
+				text: "Item"
+				size_hint_x: .05				
 			TextInput:
 				id:searchtext
 				multiline: False
 				on_text_validate: root.tiFilterText(self.text)
+			Button:
+				text: 'Clear'
+				size_hint_x: .05
+				on_release: searchtext.text='';begindate.text='';enddate.text=''
+				
 		BoxLayout:
 			id:columnHeadings
 			orientation: 'vertical'

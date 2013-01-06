@@ -41,7 +41,7 @@ from random import randint
 from time import sleep
 from collections import Counter
 from functools import partial
-
+from datetime import datetime
 
 class TimeEntry(Widget):
     pass
@@ -88,25 +88,80 @@ class pytimeline(RelativeLayout):
     loadfile = ObjectProperty(None)
     df=pandas.DataFrame()
     dfready=BooleanProperty(False)
-    dftime=pandas.DataFrame()
+    dfsel=pandas.DataFrame()
     timeitems=ObjectProperty()
     SearchText=ObjectProperty(TextInput)
     
     def tiFilterText(self,searchText):        
-        dfFilter=self.dftime['File Name'].map(lambda x:string.lower(searchText) in string.lower(x) )
-        if len(self.dftime[dfFilter])==0:
+        #filter the dataframe by case-insensitive 'file name' field matching the text
+        dfFilter=self.dfsel['File Name'].map(lambda x:string.lower(searchText) in string.lower(x) )
+        
+        if len(self.dfsel[dfFilter])==0:
             self.status='No matches'        
         else:
-            sel=self.dftime[dfFilter]
+            #we've got something, so show it and filter results.            
+            sel=self.dfsel[dfFilter]
             self.tiShowDataFrame(sel)
+            #save our filter
+            self.dfsel=sel
+
+    def tiFilterDate(self,beginDate,endDate):
+        #in case the user didn't enter a full date
+        #set the defaults to whatever is in our view: beginning, ending
+        #helps them whittle it down without having to type full date/time ranges.
         
+        #beginning default date is the first thing in our list
+        bdateDefault=datetime(self.dfsel.index.year[0],self.dfsel.index.month[0],self.dfsel.index.day[0])
+        
+        #ending default date is the last thing in our list
+        pos=len(self.dfsel.index)-1
+        edateDefault=datetime(self.dfsel.index.year[pos],self.dfsel.index.month[pos],self.dfsel.index.day[pos])
+        
+        eDate=None
+        bDate=None
+        sel=''
+        try:
+            if len(beginDate.strip())>0:
+                bDate=pandas.lib.tslib.parse_date(beginDate.strip(),default=bdateDefault)
+            if len(endDate.strip())>0:
+                eDate=pandas.lib.tslib.parse_date(endDate.strip(),default=edateDefault)
+        except Exception as e:
+            self.status='invalid date range' + str(e)
+            return
+        
+        
+        
+        if not bDate ==None and not eDate ==None:
+            #sanity
+            try:                    
+                if bDate< eDate:                        
+                    sel=self.dfsel[self.dfsel.index>= bDate]
+                    sel=sel[sel.index<= eDate]
+                else: 
+                    self.status='invalid date range'
+                    return
+            except Exception as e:
+                self.status=str(e)
+                return
+        elif not bDate ==None:
+            sel=self.dfsel[self.dfsel.index>= bDate]
+        elif not eDate == None: 
+            sel=self.dfsel[self.dfsel.index<= eDate]
+        if len(sel)==0:
+            self.status='No matches'        
+        else:
+            #we've got something, so show it and filter results.
+            self.tiShowDataFrame(sel)            
+            #save our filter
+            self.dfsel=sel
+            
     def tiFilterYear(self,year):        
 
         #get the subset of the data frame that matches the year: 
         #first X matches?
         #sel=self.df[self.df.index.year==year][0:100]
         sel=self.df[self.df.index.year==year]
-        self.dftime=sel
+        self.dfsel=sel
         self.tiShowDataFrame(sel)
 
     def tiShowDataFrame(self,dataframe):
