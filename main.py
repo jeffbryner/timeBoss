@@ -110,12 +110,12 @@ class pytimeline(RelativeLayout):
         #set the defaults to whatever is in our view: beginning, ending
         #helps them whittle it down without having to type full date/time ranges.
         
-        #beginning default date is the first thing in our list
-        bdateDefault=datetime(self.dfsel.index.year[0],self.dfsel.index.month[0],self.dfsel.index.day[0])
+        #beginning default date is the first thing in our list, first day, first second
+        bdateDefault=datetime(self.dfsel.index.year[0],self.dfsel.index.month[0],1,0,0,0)
         
-        #ending default date is the last thing in our list
+        #ending default date is the first day of the last thing in our list, end of day
         pos=len(self.dfsel.index)-1
-        edateDefault=datetime(self.dfsel.index.year[pos],self.dfsel.index.month[pos],self.dfsel.index.day[pos])
+        edateDefault=datetime(self.dfsel.index.year[pos],self.dfsel.index.month[pos],1, 23, 59,59)
         
         eDate=None
         bDate=None
