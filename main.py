@@ -79,7 +79,53 @@ class macFileRead(Thread):
         
     def run(self):        
         self.parent.dfready=False
-        self.df=pandas.read_csv(self.filename,parse_dates=True,keep_date_col=True,index_col=0)
+        
+        #sample the file headers to see what we are dealing with: 
+        headers=open(self.filename).readlines()[:1][0].strip().lower()
+        
+        
+        
+        
+        if 'meta' in headers:
+            #classic mactime file
+            #'date,size,type,mode,uid,gid,meta,file name'
+            self.df=pandas.read_csv(self.filename,parse_dates=True,keep_date_col=True,index_col=0,low_memory=False)
+            self.df.reindex()
+        if 'macb' in headers:
+            #log2timeline file
+            #'date,time,timezone,macb,source,sourcetype,type,user,host,short,desc,version,filename,inode,notes,format,extra'
+            # read in the date,time fields as one field to index as datetime index.
+            self.df=pandas.read_csv(self.filename,keep_date_col=True,index_col=None,parse_dates=[[0,1]],low_memory=False,error_bad_lines=False)
+
+            #fixup field names: 
+            headers=headers.replace('filename','file name')
+            headers=headers.replace('date','l2tdate')
+            headers=headers.replace('time','time')
+            headers=headers.replace('macb','type')
+            headers=headers.replace('inode','meta')
+            headers=headers.title()
+            headers=headers.replace('User','UID')
+            headerColumns=headers.split(',')
+            headerColumns.insert(0,'Date')
+            #rename the columns in the dataframe
+            self.df.columns=headerColumns
+
+            #remove columns with dup date to avoid pandas bugs
+            del self.df['L2Tdate']
+            del self.df['Time']
+            #add missing columns
+            self.df["Size"]=pandas.np.NaN
+            self.df["GID"]=pandas.np.NaN
+            self.df["Mode"]=pandas.np.NaN
+            
+            #index the dataframe
+            self.df.index=self.df['Date']
+            self.df.index.name='Date'
+            self.df.reindex()
+            
+            
+            
+            
         self.parent.df = self.df
         self.parent.dfready=True
 
@@ -94,7 +140,7 @@ class pytimeline(RelativeLayout):
     
     def tiFilterText(self,searchText):        
         #filter the dataframe by case-insensitive 'file name' field matching the text
-        dfFilter=self.dfsel['File Name'].map(lambda x:string.lower(searchText) in string.lower(x) )
+        dfFilter=self.dfsel['File Name'].map(lambda x:string.lower(searchText) in string.lower(str(x.decode('ascii',errors='ignore'))) )
         
         if len(self.dfsel[dfFilter])==0:
             self.status='No matches'        
@@ -270,7 +316,9 @@ class pytimeline(RelativeLayout):
 class pytimelineApp(App):           
     def build_config(self, config):
         Config.set('kivy','log_enable','0')                
+        print(options,Config)
         if options.debug:
+            print('debug!')
             Config.set('kivy','log_level','debug')
         else:
             Config.set('kivy','log_level','critical')
@@ -291,6 +339,6 @@ class pytimelineApp(App):
 
 if __name__ == '__main__':
     parser = OptionParser()
-    parser.add_option("-d", "--debug",action="store_true", dest="debug", default=False, help="turn on debugging output")    
+    parser.add_option("-d", "--debug",action="store_true", dest="debug", default=True, help="turn on debugging output")    
     (options,args) = parser.parse_args()
     pytimelineApp().run()
