@@ -42,6 +42,7 @@ from time import sleep
 from collections import Counter
 from functools import partial
 from datetime import datetime
+from collections import OrderedDict
 
 class TimeEntry(Widget):
     pass
@@ -82,49 +83,36 @@ class macFileRead(Thread):
         
         #sample the file headers to see what we are dealing with: 
         headers=open(self.filename).readlines()[:1][0].strip().lower()
-        
-        
-        
-        
-        if 'meta' in headers:
+
+        if 'date' in headers and 'meta' in headers:
             #classic mactime file
             #'date,size,type,mode,uid,gid,meta,file name'
             self.df=pandas.read_csv(self.filename,parse_dates=True,keep_date_col=True,index_col=0,low_memory=False)
             self.df.reindex()
-        if 'macb' in headers:
+            self.df = self.df.sort_index()            
+        if 'time' in headers and 'macb' in headers:
             #log2timeline file
             #'date,time,timezone,macb,source,sourcetype,type,user,host,short,desc,version,filename,inode,notes,format,extra'
             # read in the date,time fields as one field to index as datetime index.
             self.df=pandas.read_csv(self.filename,keep_date_col=True,index_col=None,parse_dates=[[0,1]],low_memory=False,error_bad_lines=False)
 
             #fixup field names: 
-            headers=headers.replace('filename','file name')
             headers=headers.replace('date','l2tdate')
-            headers=headers.replace('time','time')
-            headers=headers.replace('macb','type')
-            headers=headers.replace('inode','meta')
             headers=headers.title()
-            headers=headers.replace('User','UID')
             headerColumns=headers.split(',')
             headerColumns.insert(0,'Date')
             #rename the columns in the dataframe
             self.df.columns=headerColumns
 
-            #remove columns with dup date to avoid pandas bugs
+            #remove columns with dup date to avoid pandas issues
             del self.df['L2Tdate']
             del self.df['Time']
-            #add missing columns
-            self.df["Size"]=pandas.np.NaN
-            self.df["GID"]=pandas.np.NaN
-            self.df["Mode"]=pandas.np.NaN
             
             #index the dataframe
             self.df.index=self.df['Date']
             self.df.index.name='Date'
             self.df.reindex()
-            
-            
-            
+            self.df = self.df.sort_index()
             
         self.parent.df = self.df
         self.parent.dfready=True
@@ -137,12 +125,46 @@ class pytimeline(RelativeLayout):
     dfsel=pandas.DataFrame()
     timeitems=ObjectProperty()
     SearchText=ObjectProperty(TextInput)
+    printFormat=OrderedDict()
     
     def tiFilterText(self,searchText):        
-        #filter the dataframe by case-insensitive 'file name' field matching the text
-        dfFilter=self.dfsel['File Name'].map(lambda x:string.lower(searchText) in string.lower(str(x.decode('ascii',errors='ignore'))) )
+        #filter the dataframe by case-insensitive fields matching the text
+        #search keywords: 
+        #fieldname: value    <--makes us search only that fieldname for the value
+        #! fieldname: value  <--search for anything not matching the value in the field
+        #value               <--search only the file name (mactime)  or 'desc' field (log2timeline)
         
-        if len(self.dfsel[dfFilter])==0:
+        sText=""
+        dfFilter=None
+        if ':' in searchText:
+            #likely we are searching a specific field:
+            for field in self.printFormat.keys():
+                scommand='%s: '%field.lower()
+                if (scommand) in searchText:
+                    sText=string.replace(string.lower(searchText),scommand,'').strip()
+                    if '!' in searchText:
+                        sText=string.replace(sText,'!','').strip()
+                        dfFilter=self.dfsel[field].map(lambda x:sText not in string.lower(str(x.decode('ascii',errors='ignore'))) )
+                    else:
+                        dfFilter=self.dfsel[field].map(lambda x:sText in string.lower(str(x.decode('ascii',errors='ignore'))) )                                    
+        
+        #if it's not set yet, it's not a column match, try file/description.
+        if dfFilter is None and 'File Name' in self.dfsel.columns:            
+            if '!' in searchText:
+                sText=string.replace(sText,'!','').strip()
+                dfFilter=self.dfsel['File Name'].map(lambda x:string.lower(sText) not in string.lower(str(x.decode('ascii',errors='ignore'))) )                
+            else:
+                dfFilter=self.dfsel['File Name'].map(lambda x:string.lower(searchText) in string.lower(str(x.decode('ascii',errors='ignore'))) )
+        elif dfFilter is None and 'Desc' in self.dfsel.columns:
+            if '!' in searchText:
+                sText=string.replace(sText,'!','').strip()
+                dfFilter=self.dfsel['Desc'].map(lambda x:string.lower(sText) not in string.lower(str(x.decode('ascii',errors='ignore'))) )
+            else:
+                dfFilter=self.dfsel['Desc'].map(lambda x:string.lower(searchText) in string.lower(str(x.decode('ascii',errors='ignore'))) )
+
+        #print(sText)
+        
+        if dfFilter is None or len(self.dfsel[dfFilter])==0:
             self.status='No matches'        
         else:
             #we've got something, so show it and filter results.            
@@ -201,8 +223,10 @@ class pytimeline(RelativeLayout):
             #save our filter
             self.dfsel=sel
             
-    def tiFilterYear(self,year):        
-
+    def tiFilterYear(self,year):
+        self.timeitems.clear_widgets()
+        content = Wait()
+        self.timeitems.add_widget(content)
         #get the subset of the data frame that matches the year: 
         #first X matches?
         #sel=self.df[self.df.index.year==year][0:100]
@@ -217,7 +241,6 @@ class pytimeline(RelativeLayout):
         
         #add the index back as a column so we can see it
         dataframe['Date']=dataframe.index
-        
         #convert to a list of dictionaries to get all the values, full strings, etc.
         ilist=list()
         for v in dataframe.values: 
@@ -226,10 +249,18 @@ class pytimeline(RelativeLayout):
                 adict[dataframe.columns[c]]=str(v[c])
             ilist.append(adict)
         
-        #format the string output
+
+        #create the format string
+        sFormatString=""
+        #print only what we want:
+        for pf in self.printFormat.keys():
+            if pf in ilist[0].keys():        
+                sFormatString += self.printFormat[pf] + ' '     
+                
         items=list()
         for i in ilist:
-            items.append("{Date} {Size:>10} {Type} {Mode} {UID:4} {GID:4} {Meta:15} {File Name}".format(**i))
+            items.append(sFormatString.format(**i))
+            #items.append("{Date} {Size:>10} {Type} {Mode} {UID:4} {GID:4} {Meta:15} {File Name}".format(**i))
         
         #add the items to the listview
         
@@ -239,7 +270,13 @@ class pytimeline(RelativeLayout):
         
         #add the header
         headeritems=list()
-        headeritems.append("{0:19} {1:>10} {2} {3:12} {4:4} {5:4} {6:15} {7}".format('Date','Size','Type','Mode','UID','GID','Meta','File Name'))
+        #headeritems.append("{0:19} {1:>10} {2} {3:12} {4:4} {5:4} {6:15} {7}".format('Date','Size','Type','Mode','UID','GID','Meta','File Name'))
+        #make a dict for the header to be formatted the same as the data:
+        columnDict=dict.fromkeys(dataframe.columns.tolist())
+        for c in columnDict.keys():
+            columnDict[c]=c
+        headeritems.append(sFormatString.format(**columnDict))        
+        
         header_list_adapter=ListAdapter(data=headeritems,template='TimeEntry')
         header_list_view = ListView(adapter=header_list_adapter)
         self.columnHeadings.add_widget(header_list_view)
@@ -267,7 +304,8 @@ class pytimeline(RelativeLayout):
 
     def tiStartLoadFile(self,path,filename):
         #use the kivy scheduler to show a wait ui, start the read thread and schedule the load transaction
-        Clock.schedule_once(partial(self.uiShowWait))        
+        Clock.schedule_once(partial(self.uiShowWait)) 
+        
         self.load.dismiss()                
         self.readThread=macFileRead()
         self.readThread.filename=os.path.join(path,filename[0])
@@ -283,6 +321,28 @@ class pytimeline(RelativeLayout):
             Clock.schedule_once(partial(self.tiFinishLoadFile),1)
             return
 
+        #We format the string output by creating a dict of fields we care about
+        #in the order we want them 
+        #with a python format string for how we want to see them.
+        #Field names are a combination of what's in mactime and log2timeline, it's only the order that matters.
+        #if the field doesn't exist we don't print it, if it's not in this dict we don't print it.
+        self.printFormat=OrderedDict()
+        self.printFormat['Date']='{Date:<19}'
+        self.printFormat['Size']='{Size:>10}'
+        self.printFormat['Macb']='{Macb:^4}'
+        self.printFormat['Type']='{Type:15}'
+        self.printFormat['Mode']='{Mode:12}'
+        self.printFormat['UID']='{UID:4}'
+        self.printFormat['GID']='{GID:4}'
+        self.printFormat['User']='{User:4}'
+        self.printFormat['Inode']='{Inode:^5}'
+        self.printFormat['Meta']='{Meta:15}'
+        self.printFormat['Source']='{Source:^6}'
+        self.printFormat['Format']='{Format:^17}'
+        #self.printFormat['Host']='{Host}'
+        self.printFormat['Desc']='{Desc:<}'
+        self.printFormat['File Name']='{File Name:<}'
+        
         #clear the old
         self.uiClearScreen()
         

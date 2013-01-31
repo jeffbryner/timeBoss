@@ -1,6 +1,6 @@
 timeBoss
 
-A UI for forensic filtering of filesystem MAC times. 
+A UI for forensic filtering of filesystem time line files from mactime or log2timeline. 
 
 What? 
     If you've used the sleuthkit to create filesystem timelines
@@ -32,6 +32,8 @@ Run?
     ils -f ntfs -m  sda1.dd >> sda1.dd.macs
     mactime -b sda1.macs -d > sda1.mactime.csv
     
+    Or use your favorite method to create log2timeline .csv file.
+    
 Usage:     
     Once opened (typical win7 install is 20MB worth of macs, 30secs to open)
     you'll see the main interface with years at the bottom, search at the top. 
@@ -45,7 +47,15 @@ Filtering:
     Filtering is cumulative. Search 'deleted' and you'll see all deleted files. Search again for 'exe' and you'll
     see only deleted 'exe' files. 
 
-    Enter any recognizable date (1/1, 1/1/2000, 4am, Aug 1st, etc) range to filter results within that range.
+    Enter any recognizable date (1/1, 1/1/2000, 4am, Aug 1st, etc) range in the start/end date field to filter results within that range.
+    
+    You can search a field by entering 
+        field: search
+    i.e. to search the Format field of a log2timeline file enter format: iehistory
+    
+    You can negate a search with ! 
+        ! format: iehistory
+    
 
     Scroll the list or the years by left clicking and dragging or via mouse
     wheel. 
