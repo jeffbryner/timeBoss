@@ -1,3 +1,4 @@
+#:kivy 1.0
 #:import os os
 <pytimeline>:
 	#pyid:kvid
@@ -22,7 +23,7 @@
 		BoxLayout:
 			padding:10
 			size_hint: 1,.07
-			Button: 
+			Button:
 				text: 'Open'
 				size_hint_x: .05
 				on_release: root.uiShowLoad()
@@ -41,10 +42,10 @@
 				id:enddate
 				multiline:False
 				size_hint_x: .2
-				on_text_validate: root.tiFilterDate(begindate.text,self.text)				
+				on_text_validate: root.tiFilterDate(begindate.text,self.text)
 			Label:
 				text: "Item"
-				size_hint_x: .05				
+				size_hint_x: .05
 			TextInput:
 				id:searchtext
 				multiline: False
@@ -53,7 +54,7 @@
 				text: 'Clear'
 				size_hint_x: .05
 				on_release: searchtext.text='';begindate.text='';enddate.text=''
-				
+
 		BoxLayout:
 			id:columnHeadings
 			orientation: 'vertical'
@@ -72,9 +73,9 @@
 			#	Color:
 			#		rgba: (0, .10, 0, .50)
 			#	Rectangle:
-			#		size: self.size										
-			#		pos: self.pos			
-			
+			#		size: self.size
+			#		pos: self.pos
+
 		BoxLayout:
 			id: timegraph
 			size_hint_y: None
@@ -86,9 +87,9 @@
 				Color:
 					rgba: (.1, .10, .20, .2)
 				Rectangle:
-					size: self.size										
-					pos: self.pos				
-		
+					size: self.size
+					pos: self.pos
+
 
 <YearWidget>:
 	RelativeLayout:
@@ -100,8 +101,8 @@
 				Color:
 					rgba: self.color if not root.selected else (1, 1, 1, .96)
 				Rectangle:
-					size: self.size										
-					pos: self.pos	
+					size: self.size
+					pos: self.pos
 		Label:
 			text: root.display
 			text_size: None,self.height
@@ -109,7 +110,7 @@
 			valign: 'bottom'
 			color: (1,0,0,1)
 			on_touch_down: root.tiFilterYear()
-			
+
 [TimeEntry@BoxLayout]:
     size_hint_y: ctx.size_hint_y
     height: ctx.height
@@ -125,7 +126,7 @@
 		pos: root.pos
 		Image:
 			source: 'loading.gif'
-        
+
 <LoadDialog>:
     BoxLayout:
         size: root.size
