@@ -28,6 +28,7 @@ from kivy.uix.textinput import TextInput
 from kivy.adapters.listadapter import ListAdapter
 from kivy.uix.listview import ListView
 from kivy.uix.label import Label
+from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
 from threading import Thread
@@ -54,29 +55,33 @@ class YearWidget(RelativeLayout):
     year=NumericProperty(0)
     selected=BooleanProperty(False)
 
-
     def tiFilterYear(self):
         #unselect everybody else but us
-        for c in self.parent.children:
-            c.selected=False
-        self.selected=True
+        print(self)
+        print(self.display)
+        print(self.selected)
+        # for c in self.children:
+        #     print(c)
+        # for c in self.children:
+        #     if c.selected:
+        #         print(c)
+        #    c.selected=False
+        #self.selected=True
         #tell the master to filter its results
         # self.parent.parent.parent.parent.parent.parent.tiFilterYear(self.year)
-        self.parent.parent.parent.parent.parent.tiFilterYear(self.year)
+        #self.parent.parent.parent.parent.parent.tiFilterYear(self.year)
 
 class Wait(BoxLayout):
     pass
+
 class LoadDialog(FloatLayout):
     load = ObjectProperty(None)
     cancel = ObjectProperty(None)
 
 class macFileRead(Thread):
-    #set as a thread to allow for large file load times into pandas
-    def __init__(self, *largs, **kwargs):
-        super(macFileRead, self).__init__(*largs, **kwargs)
-        self.df = None
-        self.parent=None
-        self.filename=None
+    df = None
+    parent=None
+    filename=None
 
     def run(self):
         self.parent.dfready=False
@@ -87,9 +92,11 @@ class macFileRead(Thread):
         if 'date' in headers and 'meta' in headers:
             #classic mactime file
             #'date,size,type,mode,uid,gid,meta,file name'
-            self.df=pandas.read_csv(self.filename,parse_dates=True,keep_date_col=True,index_col=0,low_memory=False)
-            self.df.reindex()
-            self.df = self.df.sort_index()
+            self.df=pandas.read_csv(self.filename,parse_dates=True,keep_date_col=True,low_memory=False)
+            self.df['Date']=pandas.to_datetime(self.df['Date'])
+            self.df.set_index('Date', inplace=True, drop=False)
+            self.df.sort_index(inplace=True)
+
         if 'time' in headers and 'macb' in headers:
             #log2timeline file
             #'date,time,timezone,macb,source,sourcetype,type,user,host,short,desc,version,filename,inode,notes,format,extra'
@@ -111,23 +118,35 @@ class macFileRead(Thread):
             #index the dataframe
             self.df['Date']=pandas.to_datetime(self.df['Date'])
             self.df.set_index('Date', inplace=True, drop=False)
+            self.df.sort_index(inplace=True)
             # self.df.index=self.df['Date']
             # self.df.index.name='Date'
             # self.df.reindex()
             # self.df = self.df.sort_index()
-            Logger.info(f'macFileRead {self.df.info()}')
 
         self.parent.df = self.df
+        self.parent.dfsel=self.df
         self.parent.dfready=True
         self.parent.status=f'{len(self.df)} items ready'
 
 class pytimeline(RelativeLayout):
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.status=StringProperty('')
+    #     self.loadfile = ObjectProperty(None)
+    #     self.df=pandas.DataFrame()
+    #     self.dfready=BooleanProperty(False)
+    #     self.dfsel=pandas.DataFrame()
+    #     self.timeitems=BoxLayout()
+    #     self.SearchText=ObjectProperty(TextInput)
+    #     self.printFormat=OrderedDict()
+
     status=StringProperty('')
     loadfile = ObjectProperty(None)
     df=pandas.DataFrame()
     dfready=BooleanProperty(False)
     dfsel=pandas.DataFrame()
-    timeitems=ObjectProperty()
+    timeitems=BoxLayout()
     SearchText=ObjectProperty(TextInput)
     printFormat=OrderedDict()
 
@@ -140,7 +159,7 @@ class pytimeline(RelativeLayout):
 
         sText=""
         dfFilter=None
-        Logger.info(f'df.sel.columns {self.dfsel.columns}')
+        Logger.debug(f'df.sel.columns {self.dfsel.columns}')
         if ':' in searchText:
             #likely we are searching a specific field:
             for field in list(self.printFormat.keys()):
@@ -157,7 +176,8 @@ class pytimeline(RelativeLayout):
         if dfFilter is None and 'File Name' in self.dfsel.columns:
             if '!' in searchText:
                 sText=sText.replace('!','').strip()
-                dfFilter=self.dfsel['File Name'].map(lambda x:sText.lower() not in str(x.decode('ascii',errors='ignore')).lower() )
+                #dfFilter=self.dfsel['File Name'].map(lambda x:sText.lower() not in str(x.decode('ascii',errors='ignore')).lower() )
+                dfFilter=self.dfsel['File Name'].str().lower()
             else:
                 dfFilter=self.dfsel['File Name'].map(lambda x:searchText.lower() in x.lower() )
         elif dfFilter is None and 'Desc' in self.dfsel.columns:
@@ -168,7 +188,7 @@ class pytimeline(RelativeLayout):
                 dfFilter=self.dfsel['Desc'].map(lambda x:searchText.lower() in str(x.decode('ascii',errors='ignore')).lower() )
 
         Logger.info(f'SearchText: {searchText}')
-        Logger.info(f'dfFilter: {dfFilter}')
+        #Logger.info(f'dfFilter: {dfFilter}')
 
         if dfFilter is None or len(self.dfsel[dfFilter])==0:
             self.status='No matches'
@@ -196,14 +216,16 @@ class pytimeline(RelativeLayout):
         sel=''
         try:
             if len(beginDate.strip())>0:
-                bDate=pandas.lib.tslib.parse_date(beginDate.strip(),default=bdateDefault)
+                #bDate=pandas.lib.tslib.parse_date(beginDate.strip(),default=bdateDefault)
+                bDate=pandas.to_datetime(beginDate.strip())
             if len(endDate.strip())>0:
-                eDate=pandas.lib.tslib.parse_date(endDate.strip(),default=edateDefault)
+                #eDate=pandas.lib.tslib.parse_date(endDate.strip(),default=edateDefault)
+                eDate=pandas.to_datetime(endDate.strip())
         except Exception as e:
             self.status='invalid date range' + str(e)
             return
 
-
+        Logger.debug(f'Searching from {bDate} to {eDate}')
 
         if not bDate ==None and not eDate ==None:
             #sanity
@@ -229,16 +251,17 @@ class pytimeline(RelativeLayout):
             #save our filter
             self.dfsel=sel
 
-    def tiFilterYear(self,year):
+    def tiFilterYear(self,*year):
+        Logger.info(f'filtering for year {year}')
         self.timeitems.clear_widgets()
         content = Wait()
         self.timeitems.add_widget(content)
         #get the subset of the data frame that matches the year:
         #first X matches?
         #sel=self.df[self.df.index.year==year][0:100]
-        sel=self.df[self.df.index.year==year]
-        self.dfsel=sel
-        self.tiShowDataFrame(sel)
+        self.dfsel=self.df[self.df.index.year==year].copy()
+        Logger.info(f'dfsel length {len(self.dfsel)}')
+        self.tiShowDataFrame(self.dfsel)
 
     def tiShowDataFrame(self,dataframe):
         #clear the old
@@ -247,7 +270,8 @@ class pytimeline(RelativeLayout):
 
         #add the index back as a column so we can see it
         #dataframe['Date']=dataframe.index
-        dataframe.reset_index()
+        #dataframe['Date']=pandas.to_datetime(dataframe['Date'])
+        #dataframe.set_index('Date', inplace=True, drop=False)
         #convert to a list of dictionaries to get all the values, full strings, etc.
         ilist=list()
         for v in dataframe.values:
@@ -298,10 +322,12 @@ class pytimeline(RelativeLayout):
         self.load = Popup(title="Load CSV timeline file", content=content, size_hint=(0.5, 0.5))
         self.load.open()
 
-    def uiClearScreen(self):
+    def uiClearScreen(self,timegraph=False):
         self.timeitems.clear_widgets()
         self.columnHeadings.clear_widgets()
-        self.timegraph.clear_widgets()
+        if timegraph:
+            self.timegraph.clear_widgets()
+        self.dfsel=self.df.copy()
 
     def uiShowWait(self,dt):
         self.status="..."
@@ -381,6 +407,9 @@ class pytimeline(RelativeLayout):
 
 
 class pytimelineApp(App):
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+
     def build_config(self, config):
         Config.set('kivy','log_enable','0')
         print((options,Config))
@@ -392,8 +421,6 @@ class pytimelineApp(App):
 
         Config.set('graphics','width',1500)
         Config.set('graphics','height',1024)
-
-
 
     def build(self):
         kvLayout=pytimeline()
