@@ -53,7 +53,7 @@
 			Button:
 				text: 'Clear'
 				size_hint_x: .05
-				on_release: searchtext.text='';begindate.text='';enddate.text=''
+				on_release: searchtext.text='';begindate.text='';enddate.text='';root.uiClearScreen()
 
 		BoxLayout:
 			id:columnHeadings
@@ -109,7 +109,8 @@
 			size_hint_y: None
 			valign: 'bottom'
 			color: (1,0,0,1)
-			on_touch_down: root.tiFilterYear()
+			#sends all years, resulting in excess filtering.
+			#on_touch_down: self.tiFilterYear()
 
 [TimeEntry@BoxLayout]:
     size_hint_y: ctx.size_hint_y
